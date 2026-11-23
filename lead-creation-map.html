@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lead Creation Map</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: five lanes, left to right: mechanism, path in, arrives as, enrollment view, cadence. Shared views and cadences span the rows that feed them. */
+:root{
+  --bg:#F4F7F8; --surface:#FFFFFF; --ink:#12242C; --muted:#4F626B; --line:#8FA3AC; --rule:#D3DDE1;
+  --built:#0B7066; --built-bg:#E3F3F1;
+  --todo:#8F4E08; --todo-bg:#FBEEDC;
+  --decide:#4440AE; --decide-bg:#E9E8F8;
+  --park:#5B6C74; --park-bg:#ECEFF1;
+  --chip:#E4ECEF;
+  --font-ui:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-head:'Space Grotesk','Inter',system-ui,sans-serif;
+  --font-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1A20; --surface:#15262E; --ink:#E6EEF1; --muted:#A3B5BD; --line:#52707C; --rule:#26404B;
+    --built:#55CDBF; --built-bg:#12393A;
+    --todo:#F2A85F; --todo-bg:#3A2812;
+    --decide:#B0ADF7; --decide-bg:#26244B;
+    --park:#98AAB2; --park-bg:#1D2D34;
+    --chip:#203640; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1A20; --surface:#15262E; --ink:#E6EEF1; --muted:#A3B5BD; --line:#52707C; --rule:#26404B;
+  --built:#55CDBF; --built-bg:#12393A;
+  --todo:#F2A85F; --todo-bg:#3A2812;
+  --decide:#B0ADF7; --decide-bg:#26244B;
+  --park:#98AAB2; --park-bg:#1D2D34;
+  --chip:#203640; color-scheme:dark;
+}
+body{margin:0;
+  background:var(--bg); color:var(--ink); font-family:var(--font-ui); font-size:13px; line-height:1.45;
+  padding-block:28px 48px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.page{max-width:1320px;margin-inline:auto}
+h1{font-family:var(--font-head);font-weight:700;font-size:28px;line-height:1.15;margin:0 0 6px;text-wrap:balance}
+.lede{margin:0 0 14px;color:var(--muted);font-size:14px;max-width:70ch}
+.asof{margin:0 0 14px;max-width:80ch;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:10px 18px;margin:0 0 22px;padding:0;list-style:none}
+.legend li{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.swatch{display:inline-block;width:22px;height:14px;border-radius:3px;background:var(--surface)}
+.swatch.built{border:1px solid var(--built);border-left-width:4px}
+.swatch.todo{border:1.5px dashed var(--todo);background:var(--todo-bg)}
+.swatch.decide{border:1.5px dashed var(--decide);background:var(--decide-bg)}
+.swatch.park{border:1.5px dashed var(--park);background:var(--park-bg)}
+
+.mapscroll{overflow-x:auto;padding-bottom:10px}
+.map{display:grid;grid-template-columns:1.3fr 1fr 1.15fr 1fr 1.1fr;column-gap:32px;row-gap:10px;min-width:1240px;align-items:stretch}
+.colhead{font-family:var(--font-head);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:4px;border-bottom:2px solid var(--ink)}
+.band{grid-column:1/-1;font-family:var(--font-head);font-size:13px;font-weight:700;color:var(--ink);padding:16px 0 4px;border-bottom:1px solid var(--rule)}
+.band span{font-family:var(--font-ui);font-weight:400;color:var(--muted);margin-left:8px}
+
+.c1{grid-column:1}.c2{grid-column:2}.c3{grid-column:3}.c4{grid-column:4}.c5{grid-column:5}.c45{grid-column:4 / 6}
+
+.node{position:relative;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:10px 12px;min-width:0}
+.node.mech{border-left:4px solid var(--ink)}
+.node.s-built{border:1px solid var(--built);border-left-width:4px}
+.node.s-todo{border:1.5px dashed var(--todo);background:var(--todo-bg)}
+.node.s-decide{border:1.5px dashed var(--decide);background:var(--decide-bg)}
+.node.s-park{border:1.5px dashed var(--park);background:var(--park-bg)}
+.node.arr::after{content:"";position:absolute;top:calc(50% - 1px);right:-24px;width:24px;height:2px;background:var(--line)}
+.node.arr::before{content:"";position:absolute;top:calc(50% - 5px);right:-31px;border-left:7px solid var(--line);border-top:5px solid transparent;border-bottom:5px solid transparent}
+
+.name{font-weight:600;font-size:14px;line-height:1.3;margin:0}
+.sub{margin:3px 0 0;color:var(--muted);font-size:12px}
+.sub b{color:var(--ink);font-weight:600}
+.tag{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;line-height:1;padding:3px 6px;border-radius:3px;margin-bottom:6px}
+.s-built .tag{background:var(--built-bg);color:var(--built)}
+.s-todo .tag{background:var(--surface);color:var(--todo)}
+.s-decide .tag{background:var(--surface);color:var(--decide)}
+.s-park .tag{background:var(--surface);color:var(--park)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:0;align-items:baseline}
+.kv dt{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.kv dd{margin:0;min-width:0}
+.chip{display:inline-block;font-family:var(--font-mono);font-size:12px;background:var(--chip);padding:1px 6px;border-radius:3px}
+.note{margin:6px 0 0;font-size:12px;color:var(--muted)}
+
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px;margin-top:34px}
+.panel h2{font-family:var(--font-head);font-size:15px;margin:0 0 8px;padding-bottom:6px;border-bottom:2px solid var(--ink)}
+.panel ul{margin:0;padding-left:18px}
+.panel li{margin:0 0 6px}
+.panel p{margin:8px 0 0;color:var(--muted)}
+.foot{margin-top:30px;color:var(--muted);font-size:12px;max-width:90ch}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+
+<div class="page">
+  <h1>Lead Creation Map</h1>
+  <p class="lede">Every way a lead enters Zoho, how it gets in, what it arrives as, and which cadence picks it up. Go-live is Monday, December 7, 2026.</p>
+  <p class="asof">Status as of November 22, 2026, from the rollout notes (last edited 11/20) and the review of Matt's weekend work. Nothing on this map has passed a tagged feed test yet, so "built" means in place, not proven.</p>
+  <ul class="legend" aria-label="Legend">
+    <li><span class="swatch built"></span>Built, not yet tested</li>
+    <li><span class="swatch todo"></span>To build or fix</li>
+    <li><span class="swatch decide"></span>Needs a decision</li>
+    <li><span class="swatch park"></span>Not in the launch set</li>
+  </ul>
+
+  <div class="mapscroll" tabindex="0" role="region" aria-label="Lead creation map, scrolls sideways on narrow screens">
+  <div class="map">
+    <div class="colhead c1">Lead creation mechanism</div>
+    <div class="colhead c2">How it gets into Zoho</div>
+    <div class="colhead c3">Arrives as</div>
+    <div class="colhead c4">Enrollment view</div>
+    <div class="colhead c5">Cadence</div>
+
+    <!-- Group 1: shared web inquiry cadence -->
+    <div class="band">Membership inquiries<span>General membership: form 7, Join CA form and chat share one view and one cadence</span></div>
+
+    <div class="node mech arr c1" style="grid-row:3">
+      <p class="name">Get Started Today (form 7)</p>
+      <p class="sub">General membership inquiry. Five club options.</p>
+      <p class="sub"><b>Club list today:</b> Athletic Club, Gym, Supreme, Hobbit's Glen. Needs Not sure / Any, and the label Hobbit's Glen (golf).</p>
+    </div>
+    <div class="node s-built arr c2" style="grid-row:3">
+      <span class="tag">Built · untested</span>
+      <p class="name">Zap ID 7</p>
+      <p class="sub">Sam reported updates 11/18. Needs a path for Hobbit's Glen and Not sure / Any.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:3">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Webform</span></dd><dt>Owner</dt><dd>Membership Team</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:4">
+      <p class="name">Join CA sign-up form</p>
+      <p class="sub">Join subsite. New promo field added.</p>
+      <p class="sub">Treated as general membership even though the page mentions fitness and golf. Same five club options as form 7. <b>Club list today:</b> not reviewed.</p>
+    </div>
+    <div class="node s-todo arr c2" style="grid-row:4">
+      <span class="tag">To check</span>
+      <p class="name">Join site zap</p>
+      <p class="sub">Not yet read. Sam still to add first-touch UTMs and promo.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:4">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Webform</span> (confirm)</dd><dt>Owner</dt><dd>Membership Team</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:5">
+      <p class="name">SalesIQ chat</p>
+      <p class="sub">At launch it works like Prospect Wizard: a form, no live answering. Chat button is off on the main site and not showing on Join CA.</p>
+    </div>
+    <div class="node s-todo arr c2" style="grid-row:5">
+      <span class="tag">To fix</span>
+      <p class="name">Native SalesIQ link to Zoho CRM</p>
+      <p class="sub">No zap. The integration is active; the field mapping is not set up for us.</p>
+    </div>
+    <div class="node s-todo arr c3" style="grid-row:5">
+      <dl class="kv"><dt>Target</dt><dd><span class="chip">Chat</span> · Membership Team · Not Contacted</dd></dl>
+      <p class="note"><b>Today:</b> no Mechanism, Club or UTMs mapped. Missed chats go to the Integration Admin, answered chats to the advocate.</p>
+    </div>
+
+    <div class="node s-built arr c4" style="grid-row:3 / span 3">
+      <span class="tag">Built · locked</span>
+      <p class="name">AUTO - Web Inquiry Arrivals</p>
+      <p class="sub">Mechanism is Webform or Chat, and Status is Not Contacted, Attempted to Contact or empty.</p>
+      <p class="note">Fitness and golf carry their own Mechanism values so they do not also match here. Confirm those values exist. Owner is not a condition, so the cadence keeps running after an advocate claims the lead. Needs an EP Live and EP Gold tag exclusion before the load around 12/18.</p>
+    </div>
+    <div class="node s-built c5" style="grid-row:3 / span 3">
+      <span class="tag">Built · switched off</span>
+      <p class="name">Membership Web Inquiry</p>
+      <p class="sub">General membership cadence.</p>
+      <p class="sub">Day 0 welcome, then 22 follow-ups: 11 calls, 7 emails, 5 text and close-out tasks.</p>
+      <p class="note">Ends on Contacted, Qualified, Not Qualified, Junk Lead or a reply. Owner switches from Membership Team to the advocate on claim. 24 test records are still enrolled. Turn on after tagged tests pass.</p>
+    </div>
+
+    <!-- Group 2: own cadence -->
+    <div class="band">Own cadence<span>Different copy or different entry rules</span></div>
+
+    <div class="node mech arr c1" style="grid-row:7">
+      <p class="name">Fitness landing-page form (form 3)</p>
+      <p class="sub">Runs on the lp- landing pages. Fitness-specific, separate from general membership.</p>
+      <p class="sub"><b>Club list today:</b> Athletic Club, Gym, Supreme. Needs Not sure / Any (four options).</p>
+    </div>
+    <div class="node s-todo arr c2" style="grid-row:7">
+      <span class="tag">To fix</span>
+      <p class="name">Zap ID 3</p>
+      <p class="sub">Sam reported updates 11/18, not checked. Needs a fitness Mechanism value and Not sure / Any.</p>
+    </div>
+    <div class="node s-todo arr c3" style="grid-row:7">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Webform - Fitness</span> (new value, to confirm)</dd><dt>Owner</dt><dd>Membership Team</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+    <div class="node s-todo arr c4" style="grid-row:7">
+      <span class="tag">To build</span>
+      <p class="name">Fitness enrollment view</p>
+      <p class="sub">Webform - Fitness only.</p>
+    </div>
+    <div class="node s-todo c5" style="grid-row:7">
+      <span class="tag">To build</span>
+      <p class="name">Fitness</p>
+      <p class="sub">Clone of web inquiry with fitness copy.</p>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:8">
+      <p class="name">Golf lead form (form 72)</p>
+      <p class="sub">lp-golf page. No club question.</p>
+      <p class="sub"><b>Club:</b> set to Hobbit's Glen (golf).</p>
+    </div>
+    <div class="node s-todo arr c2" style="grid-row:8">
+      <span class="tag">To fix</span>
+      <p class="name">Zap ID 72</p>
+      <p class="sub">Remove the three-club rotation. Keep Mechanism Webform - Golf.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:8">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Webform - Golf</span></dd><dt>Owner</dt><dd>Membership Team</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+    <div class="node s-todo arr c4" style="grid-row:8">
+      <span class="tag">To confirm</span>
+      <p class="name">Golf enrollment view</p>
+      <p class="sub">Must match Webform - Golf only.</p>
+    </div>
+    <div class="node s-todo c5" style="grid-row:8">
+      <span class="tag">To build</span>
+      <p class="name">Golf</p>
+      <p class="sub">Clone of web inquiry with golf copy. Draft.</p>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:9">
+      <p class="name">Schedule a Tour (form 25)</p>
+      <p class="sub">Page has dropped out of the site navigation. Club list stays at three clubs.</p>
+    </div>
+    <div class="node s-todo arr c2" style="grid-row:9">
+      <span class="tag">To fix</span>
+      <p class="name">Zap ID 25</p>
+      <p class="sub">Name splitter still in place. Tour date and time do not reach Zoho.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:9">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Tour</span></dd><dt>Owner</dt><dd>Membership Team</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+    <div class="node s-built arr c4" style="grid-row:9">
+      <span class="tag">Built · not locked</span>
+      <p class="name">Tour Leads - Active</p>
+      <p class="sub">Public view without the AUTO guard.</p>
+    </div>
+    <div class="node s-decide c5" style="grid-row:9">
+      <span class="tag">Decide</span>
+      <p class="name">Tour</p>
+      <p class="sub">Draft. Waits on the tour booking redesign.</p>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:10">
+      <p class="name">Member referral page (form 15)</p>
+      <p class="sub">Several referrals per submission. The referee has no club.</p>
+    </div>
+    <div class="node s-todo arr c2" style="grid-row:10">
+      <span class="tag">To fix</span>
+      <p class="name">Zap ID 15</p>
+      <p class="sub">Sends Referral today. Referrer goes into Description, not Referred By. No UTMs.</p>
+    </div>
+    <div class="node s-todo arr c3" style="grid-row:10">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Web Referral</span> (new value)</dd><dt>Owner</dt><dd>Membership Team</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+    <div class="node s-todo arr c4" style="grid-row:10">
+      <span class="tag">To build</span>
+      <p class="name">Web referral view</p>
+    </div>
+    <div class="node s-todo c5" style="grid-row:10">
+      <span class="tag">To build</span>
+      <p class="name">Web referral</p>
+      <p class="sub">Email only, no texts. Build first, then clone.</p>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:11">
+      <p class="name">Advocate-entered referral</p>
+      <p class="sub">An advocate records a member's referral.</p>
+    </div>
+    <div class="node arr c2" style="grid-row:11">
+      <p class="name">Entered by the advocate</p>
+      <p class="sub">No zap.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:11">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Referral</span></dd><dt>Owner</dt><dd>The advocate</dd><dt>Status</dt><dd>Not Contacted</dd></dl>
+    </div>
+    <div class="node s-todo arr c4" style="grid-row:11">
+      <span class="tag">To build</span>
+      <p class="name">In-person referral view</p>
+    </div>
+    <div class="node s-todo c5" style="grid-row:11">
+      <span class="tag">To build</span>
+      <p class="name">In-person referral</p>
+      <p class="sub">Same messages as web referral. Day 0 timing still open.</p>
+    </div>
+
+    <!-- Group 3: no cadence -->
+    <div class="band">No cadence<span>An advocate is already in contact with the person</span></div>
+
+    <div class="node mech arr c1" style="grid-row:13">
+      <p class="name">Telephone inquiry (TI)</p>
+      <p class="sub">The advocate takes the call and enters the lead.</p>
+    </div>
+    <div class="node s-decide arr c2" style="grid-row:13">
+      <span class="tag">Decide</span>
+      <p class="name">Entered by the advocate</p>
+      <p class="sub">A Nimbata zap may add the source by number dialed. Not confirmed whether it also creates leads.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:13">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Telephone Inquiry</span></dd><dt>Owner</dt><dd>The advocate</dd><dt>Status</dt><dd>Contacted (path to settle)</dd></dl>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:14">
+      <p class="name">Walk-in</p>
+      <p class="sub">The advocate enters the lead at the club.</p>
+    </div>
+    <div class="node arr c2" style="grid-row:14">
+      <p class="name">Entered by the advocate</p>
+      <p class="sub">No zap.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:14">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Walk-in</span></dd><dt>Owner</dt><dd>The advocate</dd><dt>Status</dt><dd>Contacted (path to settle)</dd></dl>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:15">
+      <p class="name">Event lead</p>
+      <p class="sub">The prospect clearly asked to hear about membership.</p>
+    </div>
+    <div class="node arr c2" style="grid-row:15">
+      <p class="name">Entered by the advocate</p>
+      <p class="sub">No zap.</p>
+    </div>
+    <div class="node arr c3" style="grid-row:15">
+      <dl class="kv"><dt>Mechanism</dt><dd><span class="chip">Walk-in</span> for launch</dd><dt>Owner</dt><dd>The advocate on site</dd><dt>Status</dt><dd>Contacted (path to settle)</dd></dl>
+    </div>
+
+    <div class="node s-park c4" style="grid-row:13 / span 3">
+      <span class="tag">None</span>
+      <p class="name">No enrollment view</p>
+    </div>
+    <div class="node s-decide c5" style="grid-row:13 / span 3">
+      <span class="tag">Decide</span>
+      <p class="name">No cadence</p>
+      <p class="sub">Contact is already made.</p>
+      <p class="note">Open: a walk-in takes two Blueprint steps to reach Contacted. Until then it looks uncontacted, and the 5-minute reach-out alert and the Contacted email may fire.</p>
+    </div>
+
+    <!-- Group 4: not in launch -->
+    <div class="band">Not in the launch set<span>Shown so the map is complete</span></div>
+
+    <div class="node mech arr c1" style="grid-row:17">
+      <p class="name">Prospect Wizard</p>
+      <p class="sub">Pop-up form on the main site.</p>
+    </div>
+    <div class="node s-park arr c2" style="grid-row:17">
+      <p class="name">Zap to Engage Pro</p>
+    </div>
+    <div class="node arr c3" style="grid-row:17">
+      <p class="name">Engage Pro, not Zoho</p>
+    </div>
+    <div class="node s-park c45" style="grid-row:17">
+      <span class="tag">Retiring</span>
+      <p class="name">Ends December 7</p>
+      <p class="sub">SalesIQ chat takes its place.</p>
+    </div>
+
+    <div class="node mech arr c1" style="grid-row:18">
+      <p class="name">CA Form Leads plugin</p>
+      <p class="sub">Every main-site form, 111 included by default. Switched off.</p>
+    </div>
+    <div class="node s-decide arr c2" style="grid-row:18">
+      <span class="tag">Decide</span>
+      <p class="name">WordPress plugin to Zoho</p>
+    </div>
+    <div class="node arr c3" style="grid-row:18">
+      <dl class="kv"><dt>Source</dt><dd><span class="chip">Service Form</span></dd><dt>Stage</dt><dd>Marketing Qualified</dd><dt>Owner</dt><dd>Senior Marketing Manager</dd></dl>
+    </div>
+    <div class="node s-decide c45" style="grid-row:18">
+      <span class="tag">Decide</span>
+      <p class="name">Kept out of the advocate cadence</p>
+      <p class="sub">It matches on email, so it can claim a lead before the membership zap does. Leave off until decided.</p>
+    </div>
+  </div>
+  </div>
+
+  <div class="panels">
+    <section class="panel">
+      <h2>Club options by form type</h2>
+      <ul>
+        <li><b>General membership (5), used by form 7, the Join CA form and chat:</b> Columbia Athletic Club, Columbia Gym, Supreme Sports Club, Hobbit's Glen (golf), Not sure / Any</li>
+        <li><b>Fitness membership (4), used by form 3:</b> Columbia Athletic Club, Columbia Gym, Supreme Sports Club, Not sure / Any</li>
+        <li><b>Golf:</b> no question; set to Hobbit's Glen (golf)</li>
+        <li><b>Tour form:</b> stays at three clubs</li>
+      </ul>
+      <p>Today form 7 shows three clubs plus Hobbit's Glen and form 3 shows three clubs; neither has Not sure / Any. The Zoho value is still "Hobbit's Glen". Adding "(golf)" touches the zap matching and the views, and Zoho should be checked for parentheses in a picklist value.</p>
+    </section>
+    <section class="panel">
+      <h2>Cadences</h2>
+      <ul>
+        <li><b>Built:</b> Membership Web Inquiry (off)</li>
+        <li><b>Needed, not built:</b> Fitness, Web referral, In-person referral, Golf (draft), plus the views that start them</li>
+        <li><b>Waiting on a decision:</b> Tour</li>
+        <li><b>Park or retire:</b> Trial (draft, unused), Produced (draft, not in launch), the old Referral draft (replaced by the two referral cadences)</li>
+      </ul>
+    </section>
+    <section class="panel">
+      <h2>Still to settle on this map</h2>
+      <ul>
+        <li>A tagged test on every launch feed, including whether a lead a zap creates enrolls in a cadence</li>
+        <li>SalesIQ: Mechanism Chat, Club and UTMs mapped, missed chats to Membership Team, chat button showing</li>
+        <li>How walk-in, TI and event leads reach Contacted</li>
+        <li>What the Nimbata zap does</li>
+        <li>Does a fitness Mechanism value exist, and is it excluded from the general view?</li>
+        <li>The fitness, web referral and golf builds</li>
+        <li>CA Form Leads plugin: on or off</li>
+      </ul>
+    </section>
+  </div>
+
+  <p class="foot">Sources: Zoho rollout notes in Notion (last edited 11/20/2026); Matt's guides for CA Zoho Site, CA Form Leads and CA Ad Tracking; SalesIQ settings screens reviewed 11/22/2026. Drawn November 22, 2026.</p>
+</div>
+
+</body>
+</html>
